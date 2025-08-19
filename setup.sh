@@ -1,70 +1,28 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -e
 
-echo "==> Personal Linux Setup Script (Day 3 - AlmaLinux)"
-echo "Started at: $(date)"
+# ===== Pretty colors =====
+GREEN="\033[1;32m"; YELLOW="\033[1;33m"; RED="\033[1;31m"; BLUE="\033[1;34m"; NC="\033[0m"
+banner() { printf "\n${BLUE}======================================${NC}\n$1\n${BLUE}======================================${NC}\n"; }
+step()   { printf "${YELLOW}[..] $1${NC}\n"; }
+ok()     { printf "${GREEN}[✔] $1${NC}\n"; }
+fail()   { printf "${RED}[✖] $1${NC}\n"; }
 
-# Detect shell rc file
-SHELL_NAME=$(basename "${SHELL:-/bin/bash}")
-if [[ "$SHELL_NAME" == "zsh" ]]; then
-  RC="$HOME/.zshrc"
-else
-  RC="$HOME/.bashrc"
+trap 'fail "Something went wrong. Check the logs above."' ERR
+
+banner "🚀 Starting Linux Setup Script (AlmaLinux)"
+step "Updating system packages…"
+sudo dnf -y update
+ok "System updated."
+
+step "Installing essential packages (git, curl, vim, wget, unzip, tree)…"
+sudo dnf -y install git curl vim wget unzip tree
+ok "Essential packages installed."
+
+step "Configuring environment (default editor = vim)…"
+if ! grep -q "export EDITOR=vim" ~/.bashrc; then
+  echo 'export EDITOR=vim' >> ~/.bashrc
 fi
+ok "Environment configured."
 
-# Ensure EPEL
-if ! rpm -q epel-release >/dev/null 2>&1; then
-  echo "==> Installing epel-release ..."
-  sudo dnf -y install epel-release
-fi
-
-# Update & install essentials
-echo "==> Updating system ..."
-sudo dnf -y upgrade --refresh
-echo "==> Installing packages ..."
-sudo dnf -y install git curl vim htop tree
-
-# Aliases & prompt (Day 2 logic)
-START="# >>> anas-setup start >>>"
-END="# <<< anas-setup end <<<"
-if ! grep -qF "$START" "$RC" 2>/dev/null; then
-  echo "==> Adding aliases & prompt ..."
-  {
-    echo "$START"
-    echo "alias ll='ls -lah --color=auto'"
-    echo "alias la='ls -A'"
-    echo "alias gs='git status'"
-    echo "alias update=\"sudo dnf -y upgrade --refresh\""
-    echo "mkcd() { mkdir -p \"\$1\" && cd \"\$1\"; }"
-    echo "export PS1='\\[\\e[1;32m\\]\\u@\\h \\[\\e[1;36m\\]\\W\\[\\e[0m\\] \\$ '"
-    echo "$END"
-  } >> "$RC"
-fi
-
-# Git config
-if command -v git >/dev/null 2>&1; then
-  if ! git config --global user.name >/dev/null 2>&1; then
-    read -rp "Set global git user.name (leave blank to skip): " GNAME
-    [[ -n "${GNAME}" ]] && git config --global user.name "$GNAME"
-  fi
-  if ! git config --global user.email >/dev/null 2>&1; then
-    read -rp "Set global git user.email (leave blank to skip): " GMAIL
-    [[ -n "${GMAIL}" ]] && git config --global user.email "$GMAIL"
-  fi
-fi
-
-# ====== Day 3 Additions ======
-echo "==> Creating default folders ..."
-mkdir -p "$HOME/Projects" "$HOME/Scripts" "$HOME/Backups"
-
-echo "==> Cleaning up system ..."
-sudo dnf -y autoremove
-sudo dnf clean all
-
-# Optional: Simple backup function
-BACKUP_FILE="$HOME/Backups/home-backup-$(date +%F).tar.gz"
-echo "==> Creating a home directory backup at: $BACKUP_FILE"
-tar --exclude="HOME/Backups" -czf "$BACKUP_FILE" "$HOME"
-
-echo "==> Day 3 complete."
-echo "==> Reload shell: source \"$RC\""
+banner "🎉 Setup completed successfully!"
